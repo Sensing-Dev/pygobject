@@ -264,6 +264,50 @@ class TestSource(unittest.TestCase):
         assert not self.dispatched
         assert context.find_source_by_id(id_) is None
 
+    def test_python_unref_pending_source(self):
+        # Tests a Python derived Source which is free'd in the context of
+        # Python, while pending on the mainloop
+        # i.e. finalize is never called as the python object is destroyed
+        self.dispatched = 0
+        self.finalized = 0
+
+        class S(GLib.Source):
+            def __init__(s, func=None):
+                s.func = func
+
+            def prepare(s):
+                return (True, 1)
+
+            def check(s):
+                pass
+
+            def dispatch(s, callback, args):
+                self.dispatched += 1
+                if s.func:
+                    s.func()
+                return False
+
+            def finalize(s):
+                self.finalized += 1
+
+        context = GLib.MainContext.new()
+
+        # The test requires the source to be of the same priority, so we need
+        # to rely on the sources beeing dispatched in the order they are added.
+        source = S(lambda: setattr(self, 'del_source', None))
+        source.attach(context)
+
+        self.del_source = S()
+        id_ = self.del_source.attach(context)
+
+        while context.iteration(may_block=False):
+            pass
+
+        assert self.del_source is None
+        assert context.find_source_by_id(id_) is None
+        assert self.finalized == 0
+        assert self.dispatched == 1
+
     def test_extra_init_args(self):
         class SourceWithInitArgs(GLib.Source):
             def __init__(self, arg, kwarg=None):
