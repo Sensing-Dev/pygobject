@@ -2,5 +2,5 @@
 directory=gobject-introspection
 url=https://gitlab.gnome.org/GNOME/gobject-introspection.git
 push-url=git@gitlab.gnome.org:GNOME/gobject-introspection.git
-revision=master
+revision=1.73.0
 depth=1
